@@ -1,9 +1,9 @@
 from PIL import Image, ImageEnhance
 
 # Load the image
-image = Image.open(r'bird.png')
+image = Image.open(r'background.png')
 
-image = image.resize((40,40))
+image = image.resize((320,200))
 
 # Ensure the image is in the correct mode (8-bit pixels, 256 colors)
 image = image.convert('P')
@@ -26,14 +26,14 @@ for y in range(height):
 #filepath = r'C:\Users\user\Downloads\FlappyBirdCOAL'
 
 # Write the pixel data and palette to a file
-with open('ship_data.asm', 'w') as file:
-    file.write('pixel_data: db ')
+with open('background.asm', 'w') as file:
+    file.write('pixel_data_background: db ')
     for i in range(len(pixel_data)):
         file.write(f'0x{pixel_data[i]:02X}')
         if i != len(pixel_data) - 1:
             file.write(', ')
 
-    file.write('\n\npalette_data: db ')
+    file.write('\n\npalette_data_background: db ')
     for i in range(0, len(palette), 3):
         file.write(f'0x{palette[i]//4:02X}, 0x{palette[i+1]//4:02X}, 0x{palette[i+2]//4:02X}')
         if i != len(palette) - 3:
