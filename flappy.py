@@ -1,7 +1,7 @@
 from PIL import Image, ImageEnhance
 
 # Load the image
-image = Image.open(r'C:\Users\user\Downloads\FlappyBirdCOAL\bird.png')
+image = Image.open(r'bird.png')
 
 image = image.resize((40,40))
 
@@ -23,7 +23,7 @@ for y in range(height):
     for x in range(width):
         pixel_data.append(pixels[y * width + x])
 
-filepath = r'C:\Users\user\Downloads\FlappyBirdCOAL'
+#filepath = r'C:\Users\user\Downloads\FlappyBirdCOAL'
 
 # Write the pixel data and palette to a file
 with open('ship_data.asm', 'w') as file:
