@@ -1,96 +1,28 @@
-from PIL import Image
-
-# Load the images
-bgimage = Image.open("background.png")
-imagenames = [
-    "bird", #0
-]
-images = []
-for name in imagenames:
-    images.append(Image.open(name+'.png'))
-
-# Resize accordingly
-bgimage = bgimage.resize((320,200))
-images[0] = images[0].resize((40,40)) # bird
-
+filename = "background.png"
+height = 320
+width = 200
 
 ## DO NOT CHANGE BELOW ##
-# Ensure the image is in the correct mode (8-bit pixels, 256 colors)
-bgimage = bgimage.convert('P', colors=256)
-for i in range(len(images)):
-    images[i] = images[i].convert('RGB', colors=256)
-    
+from PIL import Image
+
+# Get name
+filenamewithoutext = filename.split('.')[0]
+
+# Load the image
+image = Image.open(filename)
+
+# Resize accordingly
+image = image.resize((height, width))
+
 # Get the palette data
-palette = bgimage.getpalette()
+palette = [ 0, 0, 0, 0, 0, 95, 0, 0, 135, 0, 0, 175, 0, 0, 215, 0, 0, 255, 0, 95, 0, 0, 95, 95, 0, 95, 135, 0, 95, 175, 0, 95, 215, 0, 95, 255, 0, 135, 0, 0, 135, 95, 0, 135, 135, 0, 135, 175, 0, 135, 215, 0, 135, 255, 0, 175, 0, 0, 175, 95, 0, 175, 135, 0, 175, 175, 0, 175, 215, 0, 175, 255, 0, 215, 0, 0, 215, 95, 0, 215, 135, 0, 215, 175, 0, 215, 215, 0, 215, 255, 0, 255, 0, 0, 255, 95, 0, 255, 135, 0, 255, 175, 0, 255, 215, 0, 255, 255, 95, 0, 0, 95, 0, 95, 95, 0, 135, 95, 0, 175, 95, 0, 215, 95, 0, 255, 95, 95, 0, 95, 95, 95, 95, 95, 135, 95, 95, 175, 95, 95, 215, 95, 95, 255, 95, 135, 0, 95, 135, 95, 95, 135, 135, 95, 135, 175, 95, 135, 215, 95, 135, 255, 95, 175, 0, 95, 175, 95, 95, 175, 135, 95, 175, 175, 95, 175, 215, 95, 175, 255, 95, 215, 0, 95, 215, 95, 95, 215, 135, 95, 215, 175, 95, 215, 215, 95, 215, 255, 95, 255, 0, 95, 255, 95, 95, 255, 135, 95, 255, 175, 95, 255, 215, 95, 255, 255, 135, 0, 0, 135, 0, 95, 135, 0, 135, 135, 0, 175, 135, 0, 215, 135, 0, 255, 135, 95, 0, 135, 95, 95, 135, 95, 135, 135, 95, 175, 135, 95, 215, 135, 95, 255, 135, 135, 0, 135, 135, 95, 135, 135, 135, 135, 135, 175, 135, 135, 215, 135, 135, 255, 135, 175, 0, 135, 175, 95, 135, 175, 135, 135, 175, 175, 135, 175, 215, 135, 175, 255, 135, 215, 0, 135, 215, 95, 135, 215, 135, 135, 215, 175, 135, 215, 215, 135, 215, 255, 135, 255, 0, 135, 255, 95, 135, 255, 135, 135, 255, 175, 135, 255, 215, 135, 255, 255, 175, 0, 0, 175, 0, 95, 175, 0, 135, 175, 0, 175, 175, 0, 215, 175, 0, 255, 175, 95, 0, 175, 95, 95, 175, 95, 135, 175, 95, 175, 175, 95, 215, 175, 95, 255, 175, 135, 0, 175, 135, 95, 175, 135, 135, 175, 135, 175, 175, 135, 215, 175, 135, 255, 175, 175, 0, 175, 175, 95, 175, 175, 135, 175, 175, 175, 175, 175, 215, 175, 175, 255, 175, 215, 0, 175, 215, 95, 175, 215, 135, 175, 215, 175, 175, 215, 215, 175, 215, 255, 175, 255, 0, 175, 255, 95, 175, 255, 135, 175, 255, 175, 175, 255, 215, 175, 255, 255, 215, 0, 0, 215, 0, 95, 215, 0, 135, 215, 0, 175, 215, 0, 215, 215, 0, 255, 215, 95, 0, 215, 95, 95, 215, 95, 135, 215, 95, 175, 215, 95, 215, 215, 95, 255, 215, 135, 0, 215, 135, 95, 215, 135, 135, 215, 135, 175, 215, 135, 215, 215, 135, 255, 215, 175, 0, 215, 175, 95, 215, 175, 135, 215, 175, 175, 215, 175, 215, 215, 175, 255, 215, 215, 0, 215, 215, 95, 215, 215, 135, 215, 215, 175, 215, 215, 215, 215, 215, 255, 215, 255, 0, 215, 255, 95, 215, 255, 135, 215, 255, 175, 215, 255, 215, 215, 255, 255, 255, 0, 0, 255, 0, 95, 255, 0, 135, 255, 0, 175, 255, 0, 215, 255, 0, 255, 255, 95, 0, 255, 95, 95, 255, 95, 135, 255, 95, 175, 255, 95, 215, 255, 95, 255, 255, 135, 0, 255, 135, 95, 255, 135, 135, 255, 135, 175, 255, 135, 215, 255, 135, 255, 255, 175, 0, 255, 175, 95, 255, 175, 135, 255, 175, 175, 255, 175, 215, 255, 175, 255, 255, 215, 0, 255, 215, 95, 255, 215, 135, 255, 215, 175, 255, 215, 215, 255, 215, 255, 255, 255, 0, 255, 255, 95, 255, 255, 135, 255, 255, 175, 255, 255, 215, 255, 255, 255]
 
-for i in range (len(images)):
-    p_img = Image.new('P', (40, 40))
-    p_img.putpalette(palette)
+p_img = Image.new('P', (height, width))
+p_img.putpalette(palette)
 
-    conv = images[i].quantize(palette=p_img, dither=0)
-    images[i] = conv.convert('P')
+# image = image.quantize(palette=p_img, dither=Image.Dither.FLOYDSTEINBERG)
+image = image.quantize(palette=p_img, dither=0)
 
+image.save(filenamewithoutext+'.bmp')
 
-# Get the pixel data
-bgpixels = list(bgimage.getdata())
-pixels = []
-for i in range(len(images)):
-    pixels.append(list(images[i].getdata()))
-
-images[0].save(imagenames[0]+'.bmp')
-
-
-# Get image dimensions
-bgwidth, bgheight = bgimage.size
-heights = []
-widths = []
-for i in range(len(images)):
-    heights.append(images[i].size[0])
-    widths.append(images[i].size[1])
-
-
-
-# Convert pixel data to a format suitable for assembly
-bg_pixel_data = []
-for y in range(bgheight):
-    for x in range(bgwidth):
-        bg_pixel_data.append(bgpixels[y * bgwidth + x])
-
-pixel_datas = [[]]
-for i in range(len(images)):
-    for y in range(heights[i]):
-        for x in range(widths[i]):
-            pixel_datas[i].append(pixels[i][y*widths[i]+x])
-    
-
-#filepath = r'C:\Users\user\Downloads\FlappyBirdCOAL'
-
-for x in range(heights[0]):
-    for y in range(widths[0]):
-        if pixel_datas[0][x*widths[0]+y] == 0x00:
-            pixel_datas[0][x*widths[0]+y] = 0xF5
-
-# Write the pixel data and palette to a file
-with open('background_img.asm', 'w') as file:
-    file.write('pixel_data_background: db ')
-    for i in range(len(bg_pixel_data)):
-        file.write(f'0x{bg_pixel_data[i]:02X}')
-        if i != len(bg_pixel_data) - 1:
-            file.write(', ')
-
-for i in range(len(imagenames)):
-    with open(imagenames[i]+'.asm', 'w') as file:
-        file.write(f'pixel_data_{imagenames[i]}: db ')
-        for y in range(len(pixel_datas[i])):
-            file.write(f'0x{pixel_datas[i][y]:02X}')
-            if y != len(pixel_datas[i]) - 1:
-                file.write(', ')
-
-with open('pallete_data.asm', 'w') as file:
-    file.write('\n\npalette_data_background: db ')
-    for i in range(0, len(palette), 3):
-        file.write(f'0x{palette[i]//4:02X}, 0x{palette[i+1]//4:02X}, 0x{palette[i+2]//4:02X}')
-        if i != len(palette) - 3:
-            file.write(', ')
-
-print("Pixel data and palette have been written to *.asms")
+print(f"Pixel data and palette have been written to {filenamewithoutext+'.bmp'}")
