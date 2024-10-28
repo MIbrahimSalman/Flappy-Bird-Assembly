@@ -1,61 +1,72 @@
+section .text
 [org 0x0100]
 
 jmp start
+%include "file.asm"
 
-bmp_filename db 'background.bmp', 0
+bmp_filename db 'bg2.bmp', 0
 file_handle dw 0
-buffer resb 64000  ; Allocate space for the file data
 
 start:
-    ; Open the file
-    mov ah, 0x3D
-    mov al, 0
-    mov dx, bmp_filename
-    int 0x21
-    mov [file_handle], ax
+    xor ax, ax;
+    int 0x16
+
+    openfile bmp_filename
+    mov [file_handle], ax;
 
     ; Read the BMP header
-    mov ah, 0x3F
-    mov bx, [file_handle]
-    mov dx, buffer
-    mov cx, 54  ; header size
-    int 0x21
+    readfile [file_handle], 54, buffer
 
     ; Set video mode to 13h (320x200, 256 colors)
     mov ax, 0x13
     int 0x10
 
-    ; Read BMP pixel data and display it
-    mov bx, [file_handle]
-    mov [buffer], bx
-    mov di, 0
-    mov cx, 64000
+    ; Read Pallete
+    readfile [file_handle], 256*4, buffer
 
-;read_loop:
+    ; Load The Palette
+    mov cx, 256;
+    mov bx, 0;
+    mov si, buffer
+    .palleteLoop:
+        push cx
+        mov ax, 0x1010
+        mov dh, [si+2]
+        shr dh, 2
+        mov ch, [si+1]
+        shr ch, 2
+        mov cl, [si+0]
+        shr cl, 2
+        int 0x10;
+        pop cx
+        add si, 4;
+        inc bx;
+        loop .palleteLoop
+
+    
     mov ax, 0xA000
     mov es, ax
-    mov ax, 0
-    mov ah, 0x3F
-    mov si, buffer
-    ;int 0x21
-    
-read_loop:
-    mov al, [si]
-    mov [es:di], al
-    inc di
-    inc si
-    dec cx
-    jnz read_loop
+    mov cx, 200
+    mov di, 64000-320
+    .readScreen:
+        push cx
 
-    ; Close the file
-    mov ah, 0x3E
-    mov bx, [file_handle]
-    int 0x21
+        readfile [file_handle], 320, buffer
+        mov si, buffer
+        mov cx, 320
+        rep movsb
 
-    ; Wait for a keypress
-    xor ax, ax
+        pop cx
+        sub di, 320*2
+        loop .readScreen
+
+    closefile bmp_filename
+
+    xor ax, ax;
     int 0x16
 
     ; Exit the program
     mov ax, 0x4C00
     int 0x21
+
+buffer: times 64000 db 0
