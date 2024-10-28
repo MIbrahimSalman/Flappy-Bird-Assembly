@@ -29,3 +29,17 @@ mov dx, %3  ; Buffer Location
 mov ah, 0x3F
 int 0x21
 %ENDMACRO
+
+; DX:AX Will Contain New Position if Set Cursor is Successfull (CF = 0)
+; AX Will Contain Error Code If Not Able to Set Cursor (CF = 1)
+%MACRO setCursor 3
+push bx
+push cx
+mov ax, 0x4200
+mov bx, %1; File Handle
+mov cx, %2; Offset MSBs
+mov dx, %3; Offset LSBs
+int 0x21
+pop bx
+pop cx
+%ENDMACRO
