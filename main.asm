@@ -231,6 +231,8 @@ start:
     closefile bg_handle
 
     ;UNHOOK
+    mov ax, 0;
+    mov es, ax;
     mov ax, [oldisr]
     mov [es:9*4], ax
     mov ax, [oldisr+2];
