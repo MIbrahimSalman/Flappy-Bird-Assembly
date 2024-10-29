@@ -12,9 +12,12 @@ bg_handle dw 0
 bird_filename db 'bird.bmp', 0
 bird_handle dw 0
 
+bird_row: dw 100
+bird_column: dw 100
+
 delay:
     push cx
-    mov cx, 20
+    mov cx, 10
     .l1:
         push cx
         mov cx, 0xFFFF
@@ -84,11 +87,15 @@ drawBG:
 drawBird:
     pusha
 
+    setCursor [bird_handle], 0, 54+256*4
     mov ax, 0xA000
     mov es, ax
     mov cx, 40
-    mov di, 100*320 + 100
-    setCursor [bird_handle], 0, 54+256*4
+    mov ax, [bird_row]
+    mov bx, 320
+    mul bx
+    add ax, [bird_column]
+    mov di, ax
     .readScreen:
         push cx
 
@@ -117,10 +124,19 @@ drawBackgroundInBirdPlace:
 
     mov ax, 0xA000
     mov es, ax
-    mov cx, 40
-    mov di, 100*320 + 100
+    mov ax, [bird_row]
+    mov bx, 320
+    mul bx
+    mov dx, 54+256*4 + 199*320
+    sub dx, ax
+    add dx, [bird_column]
+    add ax, [bird_column]
+    mov di, ax
+    mov si, dx
+
     setCursor [bird_handle], 0, 54+256*4
-    setCursor [bg_handle], 0,  54+256*4 + (200 - 100)*320 + 100  - 320
+    setCursor [bg_handle], 0, si
+    mov cx, 40
     .readScreen:
         push cx
 
@@ -148,6 +164,33 @@ drawBackgroundInBirdPlace:
     popa
     ret
 
+oldisr: dd 0
+
+kbisr:
+    push ax
+    in al, 0x60
+
+    cmp al, 0xB9
+    je .SpaceUP
+
+    jmp .retWithoutChaining
+    .continueNormal:
+        pop ax
+        jmp far [oldisr]
+    .retWithoutChaining:
+        mov al, 0x20
+        out 0x20, al
+        pop ax
+        iret
+
+    .SpaceUP:
+        cmp word [bird_row], 50
+        jl .retWithoutChaining
+        call drawBackgroundInBirdPlace
+        sub word [bird_row], 20
+        call drawBird
+        jmp .retWithoutChaining
+
 start:
     xor ax, ax;
     int 0x16
@@ -156,24 +199,42 @@ start:
     mov ax, 0x13
     int 0x10
 
+    mov ax, 0;
+    mov es, ax;
+    ; SAVE PREVIOUS KBISR
+    mov ax, [es:9*4]
+    mov [oldisr], ax
+    mov ax, [es:9*4+2];
+    mov [oldisr+2], ax
+
+    ; HOOK
+    mov [es:9*4+2], cs
+    mov word [es:9*4], kbisr
+
     openfile bird_filename
     mov [bird_handle], ax;
     openfile bg_filename
     mov [bg_handle], ax
 
-    readfile [bird_handle], 54, buffer
-    readfile [bird_handle], 256*4, buffer
-
-
     call drawBG
-    ; infLoop:
+    .infLoop:
         call drawBackgroundInBirdPlace
+        add word [bird_row], 5
         call drawBird
-        ; call delay
-        ; jmp infLoop
+        cmp word [bird_row], 195
+        jg .stopLoop
+        call delay
+        jmp .infLoop
 
+    .stopLoop:
     closefile bird_handle
     closefile bg_handle
+
+    ;UNHOOK
+    mov ax, [oldisr]
+    mov [es:9*4], ax
+    mov ax, [oldisr+2];
+    mov [es:9*4+2], ax
 
     xor ax, ax;
     int 0x16

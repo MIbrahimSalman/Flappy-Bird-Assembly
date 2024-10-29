@@ -35,10 +35,15 @@ int 0x21
 %MACRO setCursor 3
 push bx
 push cx
+
+push word %1
+push word %2
+push word %3
+
+pop dx; Offset LSBs
+pop cx; Offset MSBs
+pop bx; File Handle
 mov ax, 0x4200
-mov bx, %1; File Handle
-mov cx, %2; Offset MSBs
-mov dx, %3; Offset LSBs
 int 0x21
 pop bx
 pop cx
