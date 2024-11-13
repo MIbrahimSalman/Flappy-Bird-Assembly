@@ -23,11 +23,13 @@ pop bx
 ; AX Will Contain Number of Bytes Read if Read is Successfull (CF = 0)
 ; AX Will Contain Error Code If Not Able to Read (CF = 1)
 %MACRO readfile 3
+pusha
 mov bx, %1  ; File Handle
 mov cx, %2  ; Size to Read
 mov dx, %3  ; Buffer Location
 mov ah, 0x3F
 int 0x21
+popa
 %ENDMACRO
 
 ; DX:AX Will Contain New Position if Set Cursor is Successfull (CF = 0)
