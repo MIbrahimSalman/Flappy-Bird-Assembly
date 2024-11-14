@@ -1,9 +1,10 @@
 %define PILLAR_WIDTH 32
 %define PILLAR_HEIGHT 128
-%define PILLAR_COUNT 4
+%define PILLAR_COUNT 3
 %define STARTING_ROW 320-22
 %define PILLAR_STEP 10
-%define PILLAR_GAP 320/4
+%define PILLAR_GAP 320/3
+%define VERTICAL_PILLAR_GAP 60
 
 %define BIRD_HEIGHT 30
 %define BIRD_WIDTH 24
@@ -28,11 +29,14 @@ bird_handle dw 0
 pillar_filename db 'pillar.bmp', 0
 pillar_handle dw 0
 
+down_pillar_filename db 'pillad.bmp', 0
+down_pillar_handle dw 0
+
 bird_row: dw 100
 bird_column: dw 100
 
-pillar_columns: dw -1, -1, -1, STARTING_ROW
-pillar_heights: dw 50, 70, 90, 64
+pillar_columns: dw -1, -1, STARTING_ROW
+pillar_heights: dw 50, 70, 64
 
 spacePressed: db 0
 
@@ -189,6 +193,100 @@ drawUpPillar:
     pop bp
     ret 6
 
+
+; BP+4 => Pillar Column
+; BP+6 => Pillar Height
+drawDownPillar:
+    push bp
+    mov bp, sp
+    pusha
+
+    setCursor [down_pillar_handle], 0, 54+256*4
+    mov ax, 0xA000
+    mov es, ax
+    mov ax, [BP+6]
+    mov bx, 320
+    mul bx
+    add ax, [BP+4]
+    mov di, ax
+    mov cx, [BP+6]
+    .readScreen:
+        push cx
+
+        readfile [down_pillar_handle], PILLAR_WIDTH, buffer
+        mov si, buffer
+        mov cx, PILLAR_WIDTH
+        .readLine:
+            mov al, [si]
+            cmp al, [transparent_pallette]
+            jz .dontPrint
+            mov [es:di], al
+            .dontPrint:
+            inc di
+            inc si
+            loop .readLine
+
+        pop cx
+        sub di, 320+PILLAR_WIDTH
+        loop .readScreen
+
+    popa
+    mov sp, bp
+    pop bp
+    ret 4
+
+; BP+4 => Pillar Column
+; BP+6 => Pillar Height
+drawBackgroundInDownPillarPlace:
+    push bp
+    mov bp, sp
+    pusha
+
+    setCursor [down_pillar_handle], 0, 54+256*4
+
+    mov ax, 0xA000
+    mov es, ax
+    mov ax, [BP+6]
+    mov bx, 320
+    mul bx
+    mov dx, 54+256*4 + 199*320
+    sub dx, ax
+    add dx, [BP+4]
+    add ax, [BP+4]
+    mov di, ax
+    mov si, dx
+
+    setCursor [bg_handle], 0, si
+    mov cx, [BP+6]
+    .readScreen:
+        push cx
+
+        readfile [down_pillar_handle], PILLAR_WIDTH, buffer
+        readfile [bg_handle], 320, buffer+PILLAR_WIDTH
+        mov si, buffer
+        mov bx, buffer+PILLAR_WIDTH
+        mov cx, PILLAR_WIDTH
+        .readLine:
+            mov al, [si]
+            cmp al, [transparent_pallette]
+            je .dontPrint
+            mov al, [bx]
+            mov [es:di], al
+            .dontPrint:
+            inc di
+            inc si
+            inc bx
+            loop .readLine
+
+        pop cx
+        sub di, 320+PILLAR_WIDTH
+        loop .readScreen
+
+    popa
+    mov sp, bp
+    pop bp
+    ret 4
+
 ; BP+4 => Pillar Row
 ; BP+6 => Pillar Column
 ; BP+8 => Pillar Height
@@ -317,7 +415,7 @@ kbisr:
         mov byte [spacePressed], 1
         jmp .retWithoutChaining
 
-moveUpPillars:
+movePillars:
     pusha
     mov cx, PILLAR_COUNT
     mov bx, PILLAR_COUNT*2
@@ -332,6 +430,14 @@ moveUpPillars:
         push 182
         call drawBackgroundInUpPillarPlace
 
+        mov ax, [pillar_heights+bx]
+        add ax, VERTICAL_PILLAR_GAP
+        sub ax, 182
+        neg ax
+        push word ax
+        push word [pillar_columns+bx]
+        call drawBackgroundInDownPillarPlace
+
         sub word [pillar_columns+bx], PILLAR_STEP
         cmp word [pillar_columns+bx], 0
         jge .dontReset
@@ -342,6 +448,14 @@ moveUpPillars:
         push word [pillar_columns+bx]
         push 182
         call drawUpPillar
+
+        mov ax, [pillar_heights+bx]
+        add ax, VERTICAL_PILLAR_GAP
+        sub ax, 182
+        neg ax
+        push word ax
+        push word [pillar_columns+bx]
+        call drawDownPillar
 
         cmp word [pillar_columns+bx], STARTING_ROW-PILLAR_GAP-PILLAR_STEP
         jg .skipPillar
@@ -356,6 +470,7 @@ moveUpPillars:
     ret
 
 start:
+
     xor ax, ax;
     int 0x16
 
@@ -381,6 +496,8 @@ start:
     mov [bg_handle], ax
     openfile pillar_filename
     mov [pillar_handle], ax
+    openfile down_pillar_filename
+    mov [down_pillar_handle], ax
 
     call drawBG
 
@@ -397,7 +514,7 @@ start:
         call drawBird
         cmp word [bird_row], 182
         jge .stopLoop
-        call moveUpPillars
+        call movePillars
         call delay
         jmp .infLoop
 
@@ -405,6 +522,7 @@ start:
     closefile bird_handle
     closefile bg_handle
     closefile pillar_handle
+    closefile down_pillar_handle
 
     ;UNHOOK
     mov ax, 0;
