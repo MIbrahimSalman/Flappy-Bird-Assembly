@@ -20,7 +20,7 @@ jmp start
 
 transparent_pallette db 0xFF
 
-bg_filename db 'bg.bmp', 0
+bg_filename db 'bgg.bmp', 0
 bg_handle dw 0
 
 bird_filename db 'bird2.bmp', 0
