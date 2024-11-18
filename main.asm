@@ -26,10 +26,10 @@ bg_handle dw 0
 bird_filename db 'bird2.bmp', 0
 bird_handle dw 0
 
-pillar_filename db 'pillar.bmp', 0
+pillar_filename db 'pillar1.bmp', 0
 pillar_handle dw 0
 
-down_pillar_filename db 'pillad.bmp', 0
+down_pillar_filename db 'pillar2.bmp', 0
 down_pillar_handle dw 0
 
 bird_row: dw 100
