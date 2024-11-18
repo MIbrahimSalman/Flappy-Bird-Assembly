@@ -1,6 +1,6 @@
-filename = "pillar1.png"
+filename = "bird3.png"
 height = 32
-width = 126
+width = 24
 
 ## DO NOT CHANGE BELOW ##
 from PIL import Image

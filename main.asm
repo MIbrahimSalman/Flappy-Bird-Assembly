@@ -6,8 +6,8 @@
 %define PILLAR_GAP 320/3
 %define VERTICAL_PILLAR_GAP 60
 
-%define BIRD_HEIGHT 30
-%define BIRD_WIDTH 24
+%define BIRD_HEIGHT 24
+%define BIRD_WIDTH 32
 
 ; %define BIRD_HEIGHT 40
 ; %define BIRD_WIDTH 40
@@ -23,7 +23,7 @@ transparent_pallette db 0xFF
 bg_filename db 'bgg.bmp', 0
 bg_handle dw 0
 
-bird_filename db 'bird2.bmp', 0
+bird_filename db 'bird3.bmp', 0
 bird_handle dw 0
 
 pillar_filename db 'pillar1.bmp', 0
