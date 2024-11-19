@@ -20,7 +20,7 @@ jmp start
 
 transparent_pallette db 0xFF
 
-bg_filename db 'bgg.bmp', 0
+bg_filename db 'bgg2.bmp', 0
 bg_handle dw 0
 
 bird_filename db 'bird3.bmp', 0
@@ -110,6 +110,8 @@ drawBG:
     ret
 
 drawBird:
+    push bp
+    mov bp, sp
     pusha
 
     setCursor [bird_handle], 0, 54+256*4
@@ -142,6 +144,8 @@ drawBird:
         loop .readScreen
 
     popa
+    mov sp, bp
+    pop bp
     ret
 
 ; BP+4 => Pillar Row
@@ -427,12 +431,12 @@ movePillars:
 
         push word [pillar_heights+bx]
         push word [pillar_columns+bx]
-        push 182
+        push 184
         call drawBackgroundInUpPillarPlace
 
         mov ax, [pillar_heights+bx]
         add ax, VERTICAL_PILLAR_GAP
-        sub ax, 182
+        sub ax, 184
         neg ax
         push word ax
         push word [pillar_columns+bx]
@@ -446,12 +450,12 @@ movePillars:
 
         push word [pillar_heights+bx]
         push word [pillar_columns+bx]
-        push 182
+        push 184
         call drawUpPillar
 
         mov ax, [pillar_heights+bx]
         add ax, VERTICAL_PILLAR_GAP
-        sub ax, 182
+        sub ax, 184
         neg ax
         push word ax
         push word [pillar_columns+bx]
@@ -468,6 +472,40 @@ movePillars:
         loop .movePillar
     popa
     ret
+
+moveGround:
+    push bp
+    mov bp, sp
+    pusha
+    mov ax, 0xA000
+    mov es, ax
+
+    mov cx, 200-185
+    mov di, 320*185
+
+    next_row:
+        mov al, byte[es:di]
+        mov si, di
+        mov dx, 320-1
+
+        shift_row:
+            mov bl, byte[es:si+1]
+            mov byte[es:si], bl
+            inc si
+            dec dx
+            jnz shift_row
+        
+        mov [es:si+1], al
+
+        add di, 320
+        loop next_row
+
+    popa
+    mov sp, bp
+    pop bp
+
+    ret
+
 
 start:
 
@@ -502,6 +540,7 @@ start:
     call drawBG
 
     .infLoop:
+        call moveGround
         call drawBackgroundInBirdPlace
         cmp byte [spacePressed], 0
         je .dontMoveUp
@@ -512,7 +551,7 @@ start:
         .dontMoveUp:
         add word [bird_row], 5
         call drawBird
-        cmp word [bird_row], 182
+        cmp word [bird_row], 184
         jge .stopLoop
         call movePillars
         call delay

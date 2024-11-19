@@ -1,6 +1,6 @@
-filename = "bird3.png"
-height = 32
-width = 24
+filename = "bgg2.png"
+height = 320
+width = 200
 
 ## DO NOT CHANGE BELOW ##
 from PIL import Image
