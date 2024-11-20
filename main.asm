@@ -5,6 +5,8 @@
 %define PILLAR_STEP 10
 %define PILLAR_GAP 320/3
 %define VERTICAL_PILLAR_GAP 60
+; %define PILLAR_OUTLINE_COLOR 87
+
 
 %define BIRD_HEIGHT 24
 %define BIRD_WIDTH 32
@@ -39,6 +41,11 @@ pillar_columns: dw -1, -1, STARTING_ROW
 pillar_heights: dw 50, 70, 64
 
 spacePressed: db 0
+collsionFlag: db 0
+
+gameOverMessage db 'Game Over! Press any key to exit.$'
+
+PILLAR_OUTLINE_COLOR: db 0xFF
 
 delay:
     push cx
@@ -105,7 +112,9 @@ drawBG:
         pop cx
         sub di, 320+320
         loop .readScreen
-
+    
+    ;mov byte[es:320*110+110], 0xFE
+    
     popa
     ret
 
@@ -129,6 +138,7 @@ drawBird:
         readfile [bird_handle], BIRD_WIDTH, buffer
         mov si, buffer
         mov cx, BIRD_WIDTH
+        call checkCollision
         .readLine:
             mov al, [si]
             cmp al, [transparent_pallette]
@@ -495,7 +505,7 @@ moveGround:
             dec dx
             jnz shift_row
         
-        mov [es:si+1], al
+        mov [es:si], al
 
         add di, 320
         loop next_row
@@ -506,6 +516,48 @@ moveGround:
 
     ret
 
+checkCollision:
+    pusha
+
+    mov ax, 0xA000  
+    mov es, ax
+    mov di, [bird_row] 
+    mov ax, 320
+    mul di
+    add ax, [bird_column]
+    mov di, ax
+
+    mov cx, BIRD_HEIGHT 
+    .checkHeightLoop:
+        push cx
+        mov cx, BIRD_WIDTH  
+        push di
+
+        .checkWidthLoop:
+            mov al, [es:di]  
+            ;cmp al, 0xFE  ; Compare with the dot color
+            cmp al, [PILLAR_OUTLINE_COLOR]
+            je .collisionDetected
+
+            inc di          
+            loop .checkWidthLoop
+
+        pop di
+        add di, (320 - BIRD_WIDTH)  ; Corrected to subtract BIRD_WIDTH
+        pop cx
+        loop .checkHeightLoop
+
+    mov al, 0
+    mov byte[collsionFlag], al  
+    jmp .collisionEnd
+
+    .collisionDetected:
+        mov al, 1
+        mov byte[collsionFlag], al 
+
+    .collisionEnd:
+    popa
+    ret
 
 start:
 
@@ -551,11 +603,19 @@ start:
         .dontMoveUp:
         add word [bird_row], 5
         call drawBird
+        ;call checkCollision
+        cmp byte[collsionFlag], 1
+        je .gameOver
         cmp word [bird_row], 184
         jge .stopLoop
         call movePillars
         call delay
         jmp .infLoop
+
+    .gameOver:
+        mov ah, 0x09
+        lea dx, gameOverMessage
+        int 0x21 
 
     .stopLoop:
     closefile bird_handle
