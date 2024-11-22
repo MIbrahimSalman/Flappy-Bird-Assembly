@@ -5,8 +5,6 @@
 %define PILLAR_STEP 10
 %define PILLAR_GAP 320/3
 %define VERTICAL_PILLAR_GAP 60
-; %define PILLAR_OUTLINE_COLOR 87
-
 
 %define BIRD_HEIGHT 24
 %define BIRD_WIDTH 32
@@ -43,9 +41,13 @@ pillar_heights: dw 50, 70, 64
 spacePressed: db 0
 collsionFlag: db 0
 
+score: dw 0
+scoreAdded: db 0
+transparentColor: db 0
+
 gameOverMessage db 'Game Over! Press any key to exit.$'
 
-PILLAR_OUTLINE_COLOR: db 0xFF
+PILLAR_OUTLINE_COLOR: db 0x48
 
 delay:
     push cx
@@ -82,6 +84,14 @@ drawBG:
         shr ch, 2
         mov cl, [si+0]
         shr cl, 2
+        cmp byte [si+0], 0
+        jne .noMatch
+        cmp byte [si+1], 0
+        jne .noMatch
+        cmp byte [si+2], 135
+        jne .noMatch
+            mov [transparentColor], bl
+        .noMatch:
         int 0x10;
         pop cx
         add si, 4;
@@ -113,15 +123,71 @@ drawBG:
         sub di, 320+320
         loop .readScreen
     
-    ;mov byte[es:320*110+110], 0xFE
-    
     popa
+    ret
+
+checkBirdInPillar:
+    push bp
+    mov bp, sp
+    pusha
+
+    mov word [bp+4], 0
+
+    mov ax, [bird_column]
+    cmp ax, [pillar_columns+0]
+    jl .skipPillar0
+    sub ax, PILLAR_WIDTH
+    cmp ax, [pillar_columns+0]
+    jg .skipPillar0
+        mov word [bp+4], -1
+    .skipPillar0:
+
+    mov ax, [bird_column]
+    cmp ax, [pillar_columns+2]
+    jl .skipPillar1
+    sub ax, PILLAR_WIDTH
+    cmp ax, [pillar_columns+2]
+    jg .skipPillar1
+        mov word [bp+4], -1
+    .skipPillar1:
+
+        
+    mov ax, [bird_column]
+    cmp ax, [pillar_columns+4]
+    jl .skipPillar2
+    sub ax, PILLAR_WIDTH
+    cmp ax, [pillar_columns+4]
+    jg .skipPillar2
+        mov word [bp+4], -1
+    .skipPillar2:
+        
+    popa
+    mov sp, bp
+    pop bp
     ret
 
 drawBird:
     push bp
     mov bp, sp
     pusha
+
+    sub sp, 2
+    call checkBirdInPillar
+    pop ax
+    cmp ax, 0
+    je .notInPillar
+        cmp byte [scoreAdded], 0
+        jne .afterPillarCheck
+        inc word [score]
+        mov byte [scoreAdded], 1
+        ; popa
+        ; mov sp, bp
+        ; pop bp
+        ; ret
+        jmp .afterPillarCheck
+    .notInPillar:
+        mov byte [scoreAdded], 0
+    .afterPillarCheck:
 
     setCursor [bird_handle], 0, 54+256*4
     mov ax, 0xA000
@@ -132,17 +198,24 @@ drawBird:
     add ax, [bird_column]
     mov di, ax
     mov cx, BIRD_HEIGHT
+    mov byte [collsionFlag], 0
     .readScreen:
         push cx
 
         readfile [bird_handle], BIRD_WIDTH, buffer
         mov si, buffer
         mov cx, BIRD_WIDTH
-        call checkCollision
         .readLine:
             mov al, [si]
             cmp al, [transparent_pallette]
             jz .dontPrint
+            push ax
+            mov al, [es:di]
+            cmp al, [PILLAR_OUTLINE_COLOR]
+            jne .noCollision
+                mov byte [collsionFlag], 1
+            .noCollision:
+            pop ax
             mov [es:di], al
             .dontPrint:
             inc di
@@ -152,7 +225,7 @@ drawBird:
         pop cx
         sub di, 320+BIRD_WIDTH
         loop .readScreen
-
+        
     popa
     mov sp, bp
     pop bp
@@ -516,49 +589,6 @@ moveGround:
 
     ret
 
-checkCollision:
-    pusha
-
-    mov ax, 0xA000  
-    mov es, ax
-    mov di, [bird_row] 
-    mov ax, 320
-    mul di
-    add ax, [bird_column]
-    mov di, ax
-
-    mov cx, BIRD_HEIGHT 
-    .checkHeightLoop:
-        push cx
-        mov cx, BIRD_WIDTH  
-        push di
-
-        .checkWidthLoop:
-            mov al, [es:di]  
-            ;cmp al, 0xFE  ; Compare with the dot color
-            cmp al, [PILLAR_OUTLINE_COLOR]
-            je .collisionDetected
-
-            inc di          
-            loop .checkWidthLoop
-
-        pop di
-        add di, (320 - BIRD_WIDTH)  ; Corrected to subtract BIRD_WIDTH
-        pop cx
-        loop .checkHeightLoop
-
-    mov al, 0
-    mov byte[collsionFlag], al  
-    jmp .collisionEnd
-
-    .collisionDetected:
-        mov al, 1
-        mov byte[collsionFlag], al 
-
-    .collisionEnd:
-    popa
-    ret
-
 start:
 
     xor ax, ax;
@@ -603,7 +633,6 @@ start:
         .dontMoveUp:
         add word [bird_row], 5
         call drawBird
-        ;call checkCollision
         cmp byte[collsionFlag], 1
         je .gameOver
         cmp word [bird_row], 184
@@ -638,4 +667,4 @@ start:
     mov ax, 0x4C00
     int 0x21
 
-buffer: times 64000 db 0
+buffer: times 2000 db 0
