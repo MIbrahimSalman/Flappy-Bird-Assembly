@@ -45,9 +45,11 @@ escMsg: db "Press Y to exit or N to continue!$"
 YPressed: db 0
 NPressed: db 0
 
-score: dw 0
+score: dw 9
 scoreAdded: db 0
 transparentColor: db 0
+ScoreBuffer db 5, 0, 0, 0, 0, '$' ; Buffer for the string (up to 5 digits and '$' for display)
+
 
 gameOverMessage db 'Game Over! Press any key to exit.$'
 
@@ -661,6 +663,48 @@ prompt_and_input_str:
         pop bp
         ret
 
+print_string:
+    pusha
+    mov dl, 0
+    mov dh, 0
+    xor bh, bh          
+    .print_char:
+        lodsb               
+        cmp al, '$'         
+        je .done            
+        mov ah, 09h         
+        mov bl, 0x07        
+        int 10h             
+        mov ah, 02h         
+        int 10h             
+        inc dl              
+        jmp .print_char     
+    .done:
+        popa
+        ret
+
+printScore:
+    pusha
+    mov ax, [score]
+    mov bx, 10
+    lea di, [ScoreBuffer + 4]
+    mov cx, 0
+
+    convert_loop:
+        xor dx, dx
+        div bx          
+        add dl, '0'
+        mov [di], dl
+        dec di        
+        inc cx
+        test ax, ax
+        jnz convert_loop
+
+    lea si, [di+1]      
+    call print_string   
+    popa
+    ret
+
 start:
 
     xor ax, ax;
@@ -694,6 +738,7 @@ start:
     call drawBG
 
     .infLoop:
+        call printScore
         cmp byte[YPressed], 1
         je .gameOver
         call moveGround
