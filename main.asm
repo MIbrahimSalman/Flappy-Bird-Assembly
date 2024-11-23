@@ -219,7 +219,7 @@ drawBird:
             mov al, [es:di]
             cmp al, [PILLAR_OUTLINE_COLOR]
             jne .noCollision
-                mov byte [collsionFlag], 1
+                ;mov byte [collsionFlag], 1
             .noCollision:
             pop ax
             mov [es:di], al
@@ -685,25 +685,39 @@ print_string:
 
 printScore:
     pusha
-    mov ax, [score]
-    mov bx, 10
-    lea di, [ScoreBuffer + 4]
-    mov cx, 0
+    mov ax, [score]        ; Load the score into AX
+    mov bx, 10             ; Base 10 for conversion
+    lea di, [ScoreBuffer + 5] ; Start at the end of the buffer
+    mov byte [di], '$'     ; Null-terminate with a '$'
+    dec di                 ; Move one position left for digits
 
+    ; Convert score to string (reverse order)
     convert_loop:
-        xor dx, dx
-        div bx          
-        add dl, '0'
-        mov [di], dl
-        dec di        
-        inc cx
-        test ax, ax
-        jnz convert_loop
+        xor dx, dx         ; Clear DX for division
+        div bx             ; AX / BX, remainder in DX, quotient in AX
+        add dl, '0'        ; Convert remainder to ASCII
+        mov [di], dl       ; Store character
+        dec di             ; Move backward
+        test ax, ax        ; Check if AX is zero
+        jnz convert_loop   ; Continue until AX is zero
 
-    lea si, [di+1]      
-    call print_string   
+    ; Point SI to the start of the resulting string
+    lea si, [di+1]         ; Adjust SI to point to the first valid digit
+
+    ; Clear score display area
+    mov dx, 0              ; Start at the top-left corner
+    mov bh, 0              ; Page 0
+    mov ah, 02h            ; Set cursor position
+    int 0x10               ; BIOS interrupt
+
+    ; Display the score
+    mov ah, 09h            ; BIOS print string function
+    mov dx, si             ; Address of the score string
+    int 0x21               ; Display the string
+
     popa
     ret
+
 
 start:
 
