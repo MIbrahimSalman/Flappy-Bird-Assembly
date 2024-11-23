@@ -663,26 +663,6 @@ prompt_and_input_str:
         pop bp
         ret
 
-print_string:
-    pusha
-    mov dl, 0
-    mov dh, 0
-    xor bh, bh          
-    .print_char:
-        lodsb               
-        cmp al, '$'         
-        je .done            
-        mov ah, 09h         
-        mov bl, 0x07        
-        int 10h             
-        mov ah, 02h         
-        int 10h             
-        inc dl              
-        jmp .print_char     
-    .done:
-        popa
-        ret
-
 printScore:
     pusha
     mov ax, [score]        ; Load the score into AX
