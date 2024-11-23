@@ -41,6 +41,10 @@ pillar_heights: dw 50, 70, 64
 spacePressed: db 0
 collsionFlag: db 0
 
+escMsg: db "Press Y to exit or N to continue!$"
+YPressed: db 0
+NPressed: db 0
+
 score: dw 0
 scoreAdded: db 0
 transparentColor: db 0
@@ -488,6 +492,9 @@ kbisr:
     cmp al, 0xB9
     je .SpaceUP
 
+    cmp al, 0X01
+    je .escPressed
+
     jmp .retWithoutChaining
     .continueNormal:
         popa
@@ -500,6 +507,13 @@ kbisr:
 
     .SpaceUP:
         mov byte [spacePressed], 1
+        jmp .retWithoutChaining
+
+    .escPressed:
+        mov byte[YPressed], 0
+        mov byte[NPressed], 0
+        call clrscrn
+        call prompt_and_input_str
         jmp .retWithoutChaining
 
 movePillars:
@@ -589,6 +603,64 @@ moveGround:
 
     ret
 
+clrscrn:
+    pusha
+    mov ax, 0xA000
+    mov es, ax
+
+    mov di, 0          
+    mov al, 0xFF       
+    mov cx, 64000
+        
+    .clearLoop:
+        stosb              
+        loop .clearLoop   
+
+    popa
+    ret
+
+prompt_and_input_str:
+    push bp
+    mov bp, sp
+    pusha
+
+    ; Center cursor
+    mov dl, 0
+    mov dh, 0
+
+    mov bh, 0h
+    mov ah, 02h
+    int 0x10
+
+    ; PROMPT
+    mov ah, 09h
+    lea dx, escMsg
+    int 0x21
+
+    ; INPUT
+    .waitForInput:
+        in al, 0x60             
+        cmp al, 0x15           
+        je .YPressed
+        cmp al, 0x31            
+        je .NPressed
+        jmp .waitForInput
+
+    .NPressed:
+        call drawBG
+        mov byte[NPressed], 1
+        jmp .exit
+
+    .YPressed:
+        mov byte[YPressed], 1
+        jmp .exit
+
+    .exit:
+        popa
+        mov sp, bp
+        pop bp
+        ret
+
 start:
 
     xor ax, ax;
@@ -622,6 +694,8 @@ start:
     call drawBG
 
     .infLoop:
+        cmp byte[YPressed], 1
+        je .gameOver
         call moveGround
         call drawBackgroundInBirdPlace
         cmp byte [spacePressed], 0
