@@ -9,9 +9,6 @@
 %define BIRD_HEIGHT 24
 %define BIRD_WIDTH 32
 
-; %define BIRD_HEIGHT 40
-; %define BIRD_WIDTH 40
-
 section .text
 [org 0x0100]
 
@@ -45,10 +42,10 @@ escMsg: db "Press Y to exit or N to continue!$"
 YPressed: db 0
 NPressed: db 0
 
-score: dw 9
+score: dw 0
 scoreAdded: db 0
 transparentColor: db 0
-ScoreBuffer db 5, 0, 0, 0, 0, '$' ; Buffer for the string (up to 5 digits and '$' for display)
+ScoreBuffer db 5, 0, 0, 0, 0, '$' ;buffer for the string (up to 5 digits and '$' for display)
 
 
 gameOverMessage db 'Game Over! Press any key to exit.$'
@@ -219,7 +216,7 @@ drawBird:
             mov al, [es:di]
             cmp al, [PILLAR_OUTLINE_COLOR]
             jne .noCollision
-                ;mov byte [collsionFlag], 1
+                mov byte [collsionFlag], 1
             .noCollision:
             pop ax
             mov [es:di], al
@@ -486,6 +483,17 @@ drawBackgroundInBirdPlace:
     ret
 
 oldisr: dd 0
+oldtimer: dd 0
+
+timer:
+    pusha
+    call printScore
+
+exit_timer:
+	mov al, 0x20
+	out 0x20, al
+    popa
+    iret 
 
 kbisr:
     pusha
@@ -685,7 +693,8 @@ printScore:
     lea si, [di+1]         ; Adjust SI to point to the first valid digit
 
     ; Clear score display area
-    mov dx, 0              ; Start at the top-left corner
+    mov dl, 19
+    mov dh, 1        ; Start at the top-left corner
     mov bh, 0              ; Page 0
     mov ah, 02h            ; Set cursor position
     int 0x10               ; BIOS interrupt
@@ -710,15 +719,29 @@ start:
 
     mov ax, 0;
     mov es, ax;
+
     ; SAVE PREVIOUS KBISR
     mov ax, [es:9*4]
     mov [oldisr], ax
+
     mov ax, [es:9*4+2];
     mov [oldisr+2], ax
 
+    ; SAVE PREVIOUS TIMER
+    mov ax,word[es:8*4];
+    mov word[oldtimer], ax;
+
+    mov ax,word[es:8*4+2];
+    mov word[oldtimer+2], ax;
+
     ; HOOK
+    cli
+    mov word[es:8*4], timer  ; Set ISR address for IRQ0 (Timer)
+    mov word[es:8*4+2], cs
+
     mov [es:9*4+2], cs
     mov word [es:9*4], kbisr
+    sti
 
     openfile bird_filename
     mov [bird_handle], ax;
@@ -732,7 +755,6 @@ start:
     call drawBG
 
     .infLoop:
-        call printScore
         cmp byte[YPressed], 1
         je .gameOver
         call moveGround
@@ -749,12 +771,17 @@ start:
         cmp byte[collsionFlag], 1
         je .gameOver
         cmp word [bird_row], 184
-        jge .stopLoop
+        jge .gameOver
         call movePillars
         call delay
         jmp .infLoop
 
     .gameOver:
+        mov dl, 0
+        mov dh, 0
+        mov bh, 0
+        mov ah, 02h
+        int 0x10
         mov ah, 0x09
         lea dx, gameOverMessage
         int 0x21 
@@ -768,10 +795,18 @@ start:
     ;UNHOOK
     mov ax, 0;
     mov es, ax;
+
     mov ax, [oldisr]
     mov [es:9*4], ax
+
     mov ax, [oldisr+2];
     mov [es:9*4+2], ax
+
+    mov ax,word[oldtimer]
+    mov word[es:8*4], ax
+
+    mov ax,word[oldtimer+2]
+    mov word[es:8*4+2], ax
 
     xor ax, ax;
     int 0x16
