@@ -1,4 +1,4 @@
-filename = "muzi.jpg"
+filename = "gameover.png"
 height = 320
 width = 200
 

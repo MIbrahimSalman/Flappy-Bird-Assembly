@@ -413,8 +413,8 @@ gameOverscreen:
         sub di, 320+320
         loop .readScreen1
 
-        mov dl, 20      ; Set cursor position
-        mov dh, 30      ; Set cursor position
+        mov dl, 13      ; Set cursor position(col)
+        mov dh, 3      ; Set cursor position(row)
         mov bh, 0
         mov ah, 02h
         int 0x10
@@ -1354,8 +1354,8 @@ printEndScore:
 
     lea si, [di+1]
 
-    mov dl, 0
-    mov dh, 0        
+    mov dl, 19
+    mov dh, 3        
     mov bh, 0              
     mov ah, 02h            
     int 0x10               
