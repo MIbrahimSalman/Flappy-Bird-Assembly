@@ -72,6 +72,12 @@ jump_freq    dw 1000        ; Frequency for jump sound
 crash_freq   dw 200         ; Frequency for crash sound
 score_freq   dw 800         ; Frequency for scoring sound
 
+pcb: dw 0, 0; SS, SP
+     dw 0, 0; SS, SP
+
+stack: times 255 dw 0
+current: dw 0
+
 
 play_sound:
     pusha
@@ -1317,7 +1323,7 @@ play_background_music:
     pop cx
     dec cx
     jnz .main_loop
-    ret
+    jmp play_background_music
 
 turn_speaker_on:
     in al, 61h
@@ -1343,14 +1349,36 @@ oldisr: dd 0
 oldtimer: dd 0
 
 timer:
+    push ds
+    push es
     pusha
+
+    push cs
+    pop ds
     call printScore
-    ;call play_background_music
+
+    mov bx, [current]
+    shl bx, 2
+
+    mov [pcb+bx], ss
+    mov [pcb+bx+2], sp
+
+    add word [current], 1
+    and word [current], 1
+    mov bx, [current]
+    shl bx, 2
+
+    mov ss, [pcb+bx]
+    mov sp, [pcb+bx+2]
+
+    ; call play_background_music
 
 exit_timer:
 	mov al, 0x20
 	out 0x20, al
     popa
+    pop es
+    pop ds
     iret 
 
 kbisr:
@@ -1579,6 +1607,7 @@ printScore:
 
 start:
 
+
     xor ax, ax;
     int 0x16
 
@@ -1589,6 +1618,13 @@ start:
     mov ax, 0;
     mov es, ax;
 
+    mov word [pcb+1*4+0], ds
+    mov word [stack+255*2-2], 0x0200
+    mov word [stack+255*2-4], cs
+    mov word [stack+255*2-6], play_background_music
+    mov word [stack+255*2-8], ds
+    mov word [stack+255*2-10-2*5], stack+255*2-10-16
+    mov word [pcb+1*4+2], stack+255*2-10-16
 
 startscreen:
     openfile start_screen_filename
