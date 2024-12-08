@@ -59,6 +59,7 @@ score: dw 0
 scoreAdded: db 0
 transparentColor: db 0
 ScoreBuffer db 5, 0, 0, 0, 0, '$' ;buffer for the string (up to 5 digits and $ for display)
+scoreMessage db 'Score: $'
 
 gameOverMessage db 'Game Over! Press any key to exit.$'
 newLine db 10, 13, '$'
@@ -411,7 +412,17 @@ gameOverscreen:
         pop cx
         sub di, 320+320
         loop .readScreen1
+
+        mov dl, 20      ; Set cursor position
+        mov dh, 30      ; Set cursor position
+        mov bh, 0
+        mov ah, 02h
+        int 0x10
+        mov ah, 0x09
+        lea dx, scoreMessage
+        int 0x21
     
+        call printEndScore
     popa
     ret 
 
@@ -847,241 +858,6 @@ HALF     equ WHOLE / 2
 QUARTER  equ HALF / 2
 EIGHTH   equ QUARTER / 2
 SIXTEENTH equ EIGHTH / 2
-
-
-; play_symphony:
-;     ; Initialize PIT
-;     mov al, 0b6h
-;     out 43h, al
-    
-;     ; First Movement - Main Theme
-;     call play_first_movement
-;     ret
-
-; play_first_movement:
-;     ; Famous opening motif: "da-da-da-dum"
-;     mov cx, 2      ; Play twice
-; .opening_motif:
-;     push cx
-    
-;     call play_development
-;     ; First measure
-;     mov ax, G3
-;     call play_note_eighth
-;     call short_pause
-;     mov ax, G3
-;     call play_note_eighth
-;     call short_pause
-;     mov ax, G3
-;     call play_note_eighth
-;     call short_pause
-;     mov ax, Eb3
-;     call play_note_half
-;     call medium_pause
-
-;     call play_development
-    
-;     ; Second measure (repeat at different pitch)
-;     mov ax, F3
-;     call play_note_eighth
-;     call short_pause
-;     mov ax, F3
-;     call play_note_eighth
-;     call short_pause
-;     mov ax, F3
-;     call play_note_eighth
-;     call short_pause
-;     mov ax, D3
-;     call play_note_half
-    
-;     pop cx
-;     loop .opening_motif
-    
-;     ; Development section
-;     pop cx
-;     ;call play_development
-;     ret
-
-; play_development:
-;     ; Transitional theme
-;     mov ax, C4
-;     call play_note_quarter
-;     mov ax, G3
-;     call play_note_quarter
-;     mov ax, E3
-;     call play_note_quarter
-;     mov ax, C3
-;     call play_note_quarter
-    
-;     ; Rising sequence
-;     mov ax, G3
-;     call play_note_eighth
-;     mov ax, A3
-;     call play_note_eighth
-;     mov ax, Bb3
-;     call play_note_eighth
-;     mov ax, C4
-;     call play_note_quarter
-    
-;     ; Dramatic climax
-;     mov ax, G4
-;     call play_note_half
-;     mov ax, Eb4
-;     call play_note_half
-;     ret
-
-; play_note:
-;     out 42h, al
-;     mov al, ah
-;     out 42h, al
-;     call turn_speaker_on
-;     ret
-
-; play_note_whole:
-;     call play_note
-;     mov cx, WHOLE
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; play_note_half:
-;     call play_note
-;     mov cx, HALF
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; play_note_quarter:
-;     call play_note
-;     mov cx, QUARTER
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; play_note_eighth:
-;     call play_note
-;     mov cx, EIGHTH
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; play_note_sixteenth:
-;     call play_note
-;     mov cx, SIXTEENTH
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; turn_speaker_on:
-;     in al, 61h
-;     mov ah, al
-;     or al, 3h
-;     out 61h, al
-;     ret
-
-; turn_speaker_off:
-;     mov al, ah
-;     out 61h, al
-;     ret
-
-; delay:
-;     push cx
-;     mov bx, 100      ; Outer loop count for extended delay
-; .outer_loop:
-;     mov cx, 0FFFFh   ; Inner loop for finer delay control
-; .inner_loop:
-;     loop .inner_loop
-;     dec bx
-;     ;jnz .outer_loop
-;     pop cx
-;     call turn_speaker_off
-;     ret
-
-
-; short_pause:
-;     mov cx, SIXTEENTH
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; medium_pause:
-;     mov cx, EIGHTH
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; long_pause:
-;     mov cx, QUARTER
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     call delay
-;     ret
-
-; Undertale - Megalovania Theme
-; Adapted for PC Speaker with consistent subroutine names
 
 ; Note frequencies (Hz)
 D4  equ 1193180 / 294
@@ -1559,6 +1335,51 @@ prompt_and_input_str:
         pop bp
         ret
 
+printEndScore:
+    pusha
+    mov ax, [score]        
+    mov bx, 10             
+    lea di, [ScoreBuffer + 5] 
+    mov byte [di], '$'     
+    dec di                 
+
+    .convert_loop:
+        xor dx, dx         
+        div bx             
+        add dl, '0'        
+        mov [di], dl       
+        dec di             
+        test ax, ax        
+        jnz .convert_loop   
+
+    lea si, [di+1]
+
+    mov dl, 0
+    mov dh, 0        
+    mov bh, 0              
+    mov ah, 02h            
+    int 0x10               
+
+    ; Set text color attribute (before printing)
+    mov ah, 09h            ; BIOS function to write character and attribute
+    mov bl, 0Bh           
+    mov cx, 1             ; Number of times to print
+    mov al, [si]          ; Character to print
+    
+    .print_loop:
+        mov ah, 09h
+        int 10h           ; Print character with color
+        inc si
+        inc dl            ; Move cursor right
+        mov ah, 02h
+        int 10h           ; Set cursor position
+        mov al, [si]      ; Get next character
+        cmp al, '$'       ; Check if we are done
+        jne .print_loop
+
+    popa
+    ret
+
 printScore:
     pusha
     mov ax, [score]        
@@ -1567,14 +1388,14 @@ printScore:
     mov byte [di], '$'     
     dec di                 
 
-    convert_loop:
+    .convert_loop:
         xor dx, dx         
         div bx             
         add dl, '0'        
         mov [di], dl       
         dec di             
         test ax, ax        
-        jnz convert_loop   
+        jnz .convert_loop   
 
     lea si, [di+1]
 
@@ -1606,7 +1427,10 @@ printScore:
 
 
 start:
-
+    mov ax, 1100
+    out 0x40, al
+    mov al, ah
+    out 0x40, al
 
     xor ax, ax;
     int 0x16
@@ -1623,7 +1447,7 @@ start:
     mov word [stack+255*2-4], cs
     mov word [stack+255*2-6], play_background_music
     mov word [stack+255*2-8], ds
-    mov word [stack+255*2-10-2*5], stack+255*2-10-16
+    mov word [stack+255*2-10-2*5], stack+255*2-10
     mov word [pcb+1*4+2], stack+255*2-10-16
 
 startscreen:
@@ -1700,7 +1524,6 @@ Resume:
     call drawBG
 
     .infLoop:
-        ; call play_background_music
         call moveGround
         call drawBackgroundInBirdPlace
         cmp byte [spacePressed], 0
@@ -1713,7 +1536,6 @@ Resume:
         add word [bird_row], 5
         call drawBird
         cmp byte[collsionFlag], 1
-        ; call play_background_music
         je .gameOver
         cmp word [bird_row], 184
         jge .gameOver
