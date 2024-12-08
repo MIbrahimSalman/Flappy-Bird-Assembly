@@ -4,10 +4,14 @@
 %define STARTING_ROW 320-22
 %define PILLAR_STEP 10
 %define PILLAR_GAP 320/3
-%define VERTICAL_PILLAR_GAP 60
+%define VERTICAL_PILLAR_GAP 70
 
 %define BIRD_HEIGHT 24
 %define BIRD_WIDTH 32
+
+%define MUSIC_FREQ 440
+%define MUSIC_DURATION 50
+%define NOTE_COUNT 8
 
 section .text
 [org 0x0100]
@@ -29,6 +33,15 @@ pillar_handle dw 0
 down_pillar_filename db 'pillar2.bmp', 0
 down_pillar_handle dw 0
 
+start_screen_filename db 'start.bmp', 0
+start_screen_handle dw 0
+
+help_screen_filename db 'help.bmp', 0
+help_screen_handle dw 0
+
+gameOverScreen_filename db 'gameover.bmp', 0
+gameOverScreen_handle dw 0
+
 bird_row: dw 100
 bird_column: dw 100
 
@@ -38,21 +51,96 @@ pillar_heights: dw 50, 70, 64
 spacePressed: db 0
 collsionFlag: db 0
 
-escMsg: db "Press Y to exit or N to continue!$"
+escMsg: db 13, "Press Y to exit or N to continue!$"
 YPressed: db 0
 NPressed: db 0
 
 score: dw 0
 scoreAdded: db 0
 transparentColor: db 0
-ScoreBuffer db 5, 0, 0, 0, 0, '$' ;buffer for the string (up to 5 digits and '$' for display)
-
+ScoreBuffer db 5, 0, 0, 0, 0, '$' ;buffer for the string (up to 5 digits and $ for display)
 
 gameOverMessage db 'Game Over! Press any key to exit.$'
+newLine db 10, 13, '$'
 
 PILLAR_OUTLINE_COLOR: db 0x48
 
-delay:
+sound_length dw 500         ; Sound duration in timer ticks
+sound_freq_low  dw 0x34DC   ; Lower 16 bits of 1193180
+sound_freq_high dw 0x0012   ; Upper 16 bits of 1193180
+jump_freq    dw 1000        ; Frequency for jump sound
+crash_freq   dw 200         ; Frequency for crash sound
+score_freq   dw 800         ; Frequency for scoring sound
+
+
+play_sound:
+    pusha
+    ; Set up the timer (mode 3, square wave)
+    mov al, 0b6h
+    out 43h, al
+    
+    ; Load and output frequency divider
+    mov dx, [sound_freq_high]
+    mov ax, [sound_freq_low]
+    div word [jump_freq]    ; Divide by desired frequency
+    out 42h, al            ; Output low byte
+    mov al, ah
+    out 42h, al            ; Output high byte
+    
+    ; Turn on speaker
+    in al, 61h
+    or al, 3
+    out 61h, al
+    
+    ; Delay loop
+    mov cx, [sound_length]
+    .delay:
+        push cx
+        mov cx, 100
+        .inner_delay:
+            loop .inner_delay
+        pop cx
+        loop .delay
+    
+    ; Turn off speaker
+    in al, 61h
+    and al, 0FCh
+    out 61h, al
+    
+    popa
+    ret
+
+play_jump_sound:
+    pusha
+    mov dx, [sound_freq_high]
+    mov ax, [sound_freq_low]
+    div word [jump_freq]
+    mov word [sound_length], 100  ; Short duration
+    call play_sound
+    popa
+    ret
+
+play_crash_sound:
+    pusha
+    mov dx, [sound_freq_high]
+    mov ax, [sound_freq_low]
+    div word [crash_freq]
+    mov word [sound_length], 1000 ; Longer duration
+    call play_sound
+    popa
+    ret
+
+play_score_sound:
+    pusha
+    mov dx, [sound_freq_high]
+    mov ax, [sound_freq_low]
+    div word [score_freq]
+    mov word [sound_length], 200  ; Medium duration
+    call play_sound
+    popa
+    ret
+
+delay1:
     push cx
     mov cx, 10
     .l1:
@@ -129,6 +217,198 @@ drawBG:
     popa
     ret
 
+drawStartScreen:
+    pusha
+
+    ; Read the BMP header
+    setCursor [start_screen_handle], 0, 54
+
+    ; Read Pallete
+    readfile [start_screen_handle], 256*4, buffer
+
+    ; Load The Palette
+    mov cx, 256;
+    mov bx, 0;
+    mov si, buffer
+    .palleteLoop1:
+        push cx
+        mov ax, 0x1010
+        mov dh, [si+2]
+        shr dh, 2
+        mov ch, [si+1]
+        shr ch, 2
+        mov cl, [si+0]
+        shr cl, 2
+        cmp byte [si+0], 0
+        jne .noMatch1
+        cmp byte [si+1], 0
+        jne .noMatch1
+        cmp byte [si+2], 135
+        jne .noMatch1
+            mov [transparentColor], bl
+        .noMatch1:
+        int 0x10;
+        pop cx
+        add si, 4;
+        inc bx;
+        loop .palleteLoop1
+
+    
+    mov ax, 0xA000
+    mov es, ax
+    mov cx, 200
+    mov di, 64000-320
+    .readScreen1:
+        push cx
+
+        readfile [start_screen_handle], 320, buffer
+        mov si, buffer
+        mov cx, 320
+        .readLine1:
+            mov al, [si]
+            cmp al, [transparent_pallette]
+            jz .dontPrint1
+            mov [es:di], al
+            .dontPrint1:
+            inc di
+            inc si
+            loop .readLine1
+
+        pop cx
+        sub di, 320+320
+        loop .readScreen1
+
+    popa
+    ret    
+
+Rules:
+    pusha
+
+    ; Read the BMP header
+    setCursor [help_screen_handle], 0, 54
+
+    ; Read Pallete
+    readfile [help_screen_handle], 256*4, buffer
+
+    ; Load The Palette
+    mov cx, 256;
+    mov bx, 0;
+    mov si, buffer
+    .palleteLoop1:
+        push cx
+        mov ax, 0x1010
+        mov dh, [si+2]
+        shr dh, 2
+        mov ch, [si+1]
+        shr ch, 2
+        mov cl, [si+0]
+        shr cl, 2
+        cmp byte [si+0], 0
+        jne .noMatch1
+        cmp byte [si+1], 0
+        jne .noMatch1
+        cmp byte [si+2], 135
+        jne .noMatch1
+            mov [transparentColor], bl
+        .noMatch1:
+        int 0x10;
+        pop cx
+        add si, 4;
+        inc bx;
+        loop .palleteLoop1
+
+    
+    mov ax, 0xA000
+    mov es, ax
+    mov cx, 200
+    mov di, 64000-320
+    .readScreen1:
+        push cx
+
+        readfile [help_screen_handle], 320, buffer
+        mov si, buffer
+        mov cx, 320
+        .readLine1:
+            mov al, [si]
+            cmp al, [transparent_pallette]
+            jz .dontPrint1
+            mov [es:di], al
+            .dontPrint1:
+            inc di
+            inc si
+            loop .readLine1
+
+        pop cx
+        sub di, 320+320
+        loop .readScreen1
+    
+    popa
+    ret
+
+gameOverscreen:
+       pusha
+
+    ; Read the BMP header
+    setCursor [gameOverScreen_handle], 0, 54
+
+    ; Read Pallete
+    readfile [gameOverScreen_handle], 256*4, buffer
+
+    ; Load The Palette
+    mov cx, 256;
+    mov bx, 0;
+    mov si, buffer
+    .palleteLoop1:
+        push cx
+        mov ax, 0x1010
+        mov dh, [si+2]
+        shr dh, 2
+        mov ch, [si+1]
+        shr ch, 2
+        mov cl, [si+0]
+        shr cl, 2
+        cmp byte [si+0], 0
+        jne .noMatch1
+        cmp byte [si+1], 0
+        jne .noMatch1
+        cmp byte [si+2], 135
+        jne .noMatch1
+            mov [transparentColor], bl
+        .noMatch1:
+        int 0x10;
+        pop cx
+        add si, 4;
+        inc bx;
+        loop .palleteLoop1
+
+    
+    mov ax, 0xA000
+    mov es, ax
+    mov cx, 200
+    mov di, 64000-320
+    .readScreen1:
+        push cx
+
+        readfile [gameOverScreen_handle], 320, buffer
+        mov si, buffer
+        mov cx, 320
+        .readLine1:
+            mov al, [si]
+            cmp al, [transparent_pallette]
+            jz .dontPrint1
+            mov [es:di], al
+            .dontPrint1:
+            inc di
+            inc si
+            loop .readLine1
+
+        pop cx
+        sub di, 320+320
+        loop .readScreen1
+    
+    popa
+    ret 
+
 checkBirdInPillar:
     push bp
     mov bp, sp
@@ -183,6 +463,7 @@ drawBird:
         jne .afterPillarCheck
         inc word [score]
         mov byte [scoreAdded], 1
+        call play_crash_sound 
         ; popa
         ; mov sp, bp
         ; pop bp
@@ -282,7 +563,6 @@ drawUpPillar:
     mov sp, bp
     pop bp
     ret 6
-
 
 ; BP+4 => Pillar Column
 ; BP+6 => Pillar Height
@@ -482,12 +762,590 @@ drawBackgroundInBirdPlace:
     popa
     ret
 
+music_counter dw 0
+music_playing db 0
+current_note db 0
+note_frequencies: dw 440, 494, 523, 587, 659, 698, 784, 880
+
+
+
+; PC Speaker Symphony
+; A multi-movement musical composition for PC speaker
+
+; Frequency constants (in Hz) for different octaves
+; Lower octave
+C3 equ 1193180 / 131
+D3 equ 1193180 / 147
+E3 equ 1193180 / 165
+F3 equ 1193180 / 175
+G3 equ 1193180 / 196
+A3 equ 1193180 / 220
+B3 equ 1193180 / 247
+
+; Middle octave
+C4 equ 1193180 / 261
+D4 equ 1193180 / 294
+E4 equ 1193180 / 329
+F4 equ 1193180 / 349
+G4 equ 1193180 / 392
+A4 equ 1193180 / 440
+B4 equ 1193180 / 493
+
+; Higher octave
+C5 equ 1193180 / 523
+D5 equ 1193180 / 587
+E5 equ 1193180 / 659
+F5 equ 1193180 / 698
+G5 equ 1193180 / 784
+A5 equ 1193180 / 880
+B5 equ 1193180 / 987
+
+; Note durations
+WHOLE equ 0FFFFh
+HALF equ WHOLE / 2
+QUARTER equ HALF / 2
+EIGHTH equ QUARTER / 2
+
+; Beethoven's Symphony No. 5 in C minor, Op. 67
+; Adapted for PC Speaker
+; First movement: Allegro con brio
+
+; Note frequencies (Hz)
+G3  equ 1193180 / 196
+Gb3 equ 1193180 / 185
+F3  equ 1193180 / 175
+E3  equ 1193180 / 165
+Eb3 equ 1193180 / 156
+D3  equ 1193180 / 147
+C3  equ 1193180 / 131
+B3  equ 1193180 / 247
+Bb3 equ 1193180 / 233
+A3  equ 1193180 / 220
+
+; Higher octave
+G4  equ 1193180 / 392
+Gb4 equ 1193180 / 370
+F4  equ 1193180 / 349
+E4  equ 1193180 / 329
+Eb4 equ 1193180 / 311
+D4  equ 1193180 / 294
+C4  equ 1193180 / 261
+B4  equ 1193180 / 493
+Bb4 equ 1193180 / 466
+A4  equ 1193180 / 440
+Ab4 equ 1193180 / 415
+
+; Note durations
+WHOLE    equ 0FFFFh
+HALF     equ WHOLE / 2
+QUARTER  equ HALF / 2
+EIGHTH   equ QUARTER / 2
+SIXTEENTH equ EIGHTH / 2
+
+
+; play_symphony:
+;     ; Initialize PIT
+;     mov al, 0b6h
+;     out 43h, al
+    
+;     ; First Movement - Main Theme
+;     call play_first_movement
+;     ret
+
+; play_first_movement:
+;     ; Famous opening motif: "da-da-da-dum"
+;     mov cx, 2      ; Play twice
+; .opening_motif:
+;     push cx
+    
+;     call play_development
+;     ; First measure
+;     mov ax, G3
+;     call play_note_eighth
+;     call short_pause
+;     mov ax, G3
+;     call play_note_eighth
+;     call short_pause
+;     mov ax, G3
+;     call play_note_eighth
+;     call short_pause
+;     mov ax, Eb3
+;     call play_note_half
+;     call medium_pause
+
+;     call play_development
+    
+;     ; Second measure (repeat at different pitch)
+;     mov ax, F3
+;     call play_note_eighth
+;     call short_pause
+;     mov ax, F3
+;     call play_note_eighth
+;     call short_pause
+;     mov ax, F3
+;     call play_note_eighth
+;     call short_pause
+;     mov ax, D3
+;     call play_note_half
+    
+;     pop cx
+;     loop .opening_motif
+    
+;     ; Development section
+;     pop cx
+;     ;call play_development
+;     ret
+
+; play_development:
+;     ; Transitional theme
+;     mov ax, C4
+;     call play_note_quarter
+;     mov ax, G3
+;     call play_note_quarter
+;     mov ax, E3
+;     call play_note_quarter
+;     mov ax, C3
+;     call play_note_quarter
+    
+;     ; Rising sequence
+;     mov ax, G3
+;     call play_note_eighth
+;     mov ax, A3
+;     call play_note_eighth
+;     mov ax, Bb3
+;     call play_note_eighth
+;     mov ax, C4
+;     call play_note_quarter
+    
+;     ; Dramatic climax
+;     mov ax, G4
+;     call play_note_half
+;     mov ax, Eb4
+;     call play_note_half
+;     ret
+
+; play_note:
+;     out 42h, al
+;     mov al, ah
+;     out 42h, al
+;     call turn_speaker_on
+;     ret
+
+; play_note_whole:
+;     call play_note
+;     mov cx, WHOLE
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; play_note_half:
+;     call play_note
+;     mov cx, HALF
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; play_note_quarter:
+;     call play_note
+;     mov cx, QUARTER
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; play_note_eighth:
+;     call play_note
+;     mov cx, EIGHTH
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; play_note_sixteenth:
+;     call play_note
+;     mov cx, SIXTEENTH
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; turn_speaker_on:
+;     in al, 61h
+;     mov ah, al
+;     or al, 3h
+;     out 61h, al
+;     ret
+
+; turn_speaker_off:
+;     mov al, ah
+;     out 61h, al
+;     ret
+
+; delay:
+;     push cx
+;     mov bx, 100      ; Outer loop count for extended delay
+; .outer_loop:
+;     mov cx, 0FFFFh   ; Inner loop for finer delay control
+; .inner_loop:
+;     loop .inner_loop
+;     dec bx
+;     ;jnz .outer_loop
+;     pop cx
+;     call turn_speaker_off
+;     ret
+
+
+; short_pause:
+;     mov cx, SIXTEENTH
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; medium_pause:
+;     mov cx, EIGHTH
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; long_pause:
+;     mov cx, QUARTER
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     call delay
+;     ret
+
+; Undertale - Megalovania Theme
+; Adapted for PC Speaker with consistent subroutine names
+
+; Note frequencies (Hz)
+D4  equ 1193180 / 294
+Db4 equ 1193180 / 277
+C4  equ 1193180 / 261
+B3  equ 1193180 / 247
+Bb3 equ 1193180 / 233
+A3  equ 1193180 / 220
+Ab3 equ 1193180 / 208
+G3  equ 1193180 / 196
+F3  equ 1193180 / 175
+E3  equ 1193180 / 165
+Eb3 equ 1193180 / 156
+D3  equ 1193180 / 147
+
+; Higher octave
+D5  equ 1193180 / 587
+C5  equ 1193180 / 523
+B4  equ 1193180 / 493
+Bb4 equ 1193180 / 466
+A4  equ 1193180 / 440
+G4  equ 1193180 / 392
+F4  equ 1193180 / 349
+E4  equ 1193180 / 329
+
+play_background_music:
+    ; Initialize PIT for square wave generation
+    mov al, 0b6h
+    out 43h, al
+    
+    ; Main loop for the theme
+    mov cx, 300      ; Play pattern twice
+.main_loop:
+    push cx
+    
+    ; First measure
+    mov ax, D4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, D4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, D5
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, A4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, Ab4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, G4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, F4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    ; Second measure with variation
+    mov ax, C4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, C4
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call turn_speaker_off
+    
+    mov ax, D5
+    out 42h, al
+    mov al, ah
+    out 42h, al
+    call turn_speaker_on
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    call delay
+    
+    call turn_speaker_off
+    
+    pop cx
+    dec cx
+    jnz .main_loop
+    ret
+
+turn_speaker_on:
+    in al, 61h
+    mov ah, al
+    or al, 3h
+    out 61h, al
+    ret
+
+turn_speaker_off:
+    mov al, ah
+    out 61h, al
+    ret
+
+delay:
+    ; Adjustable delay for tempo control
+    mov cx, 0FFFFh
+.delay_loop:
+    loop .delay_loop
+    ret
+
+
 oldisr: dd 0
 oldtimer: dd 0
 
 timer:
     pusha
     call printScore
+    ;call play_background_music
 
 exit_timer:
 	mov al, 0x20
@@ -517,6 +1375,7 @@ kbisr:
 
     .SpaceUP:
         mov byte [spacePressed], 1
+        call play_score_sound 
         jmp .retWithoutChaining
 
     .escPressed:
@@ -590,22 +1449,22 @@ moveGround:
     mov cx, 200-185
     mov di, 320*185
 
-    next_row:
+    .next_row:
         mov al, byte[es:di]
         mov si, di
         mov dx, 320-1
 
-        shift_row:
+        .shift_row:
             mov bl, byte[es:si+1]
             mov byte[es:si], bl
             inc si
             dec dx
-            jnz shift_row
+            jnz .shift_row
         
         mov [es:si], al
 
         add di, 320
-        loop next_row
+        loop .next_row
 
     popa
     mov sp, bp
@@ -633,11 +1492,11 @@ prompt_and_input_str:
     push bp
     mov bp, sp
     pusha
-
+    push es
+    
     ; Center cursor
     mov dl, 0
     mov dh, 0
-
     mov bh, 0h
     mov ah, 02h
     int 0x10
@@ -666,6 +1525,7 @@ prompt_and_input_str:
         jmp .exit
 
     .exit:
+        pop es
         popa
         mov sp, bp
         pop bp
@@ -673,36 +1533,45 @@ prompt_and_input_str:
 
 printScore:
     pusha
-    mov ax, [score]        ; Load the score into AX
-    mov bx, 10             ; Base 10 for conversion
-    lea di, [ScoreBuffer + 5] ; Start at the end of the buffer
-    mov byte [di], '$'     ; Null-terminate with a '$'
-    dec di                 ; Move one position left for digits
+    mov ax, [score]        
+    mov bx, 10             
+    lea di, [ScoreBuffer + 5] 
+    mov byte [di], '$'     
+    dec di                 
 
-    ; Convert score to string (reverse order)
     convert_loop:
-        xor dx, dx         ; Clear DX for division
-        div bx             ; AX / BX, remainder in DX, quotient in AX
-        add dl, '0'        ; Convert remainder to ASCII
-        mov [di], dl       ; Store character
-        dec di             ; Move backward
-        test ax, ax        ; Check if AX is zero
-        jnz convert_loop   ; Continue until AX is zero
+        xor dx, dx         
+        div bx             
+        add dl, '0'        
+        mov [di], dl       
+        dec di             
+        test ax, ax        
+        jnz convert_loop   
 
-    ; Point SI to the start of the resulting string
-    lea si, [di+1]         ; Adjust SI to point to the first valid digit
+    lea si, [di+1]
 
-    ; Clear score display area
     mov dl, 19
-    mov dh, 1        ; Start at the top-left corner
-    mov bh, 0              ; Page 0
-    mov ah, 02h            ; Set cursor position
-    int 0x10               ; BIOS interrupt
+    mov dh, 1        
+    mov bh, 0              
+    mov ah, 02h            
+    int 0x10               
 
-    ; Display the score
-    mov ah, 09h            ; BIOS print string function
-    mov dx, si             ; Address of the score string
-    int 0x21               ; Display the string
+    ; Set text color attribute (before printing)
+    mov ah, 09h            ; BIOS function to write character and attribute
+    mov bl, 0Bh           
+    mov cx, 1             ; Number of times to print
+    mov al, [si]          ; Character to print
+    
+    .print_loop:
+        mov ah, 09h
+        int 10h           ; Print character with color
+        inc si
+        inc dl            ; Move cursor right
+        mov ah, 02h
+        int 10h           ; Set cursor position
+        mov al, [si]      ; Get next character
+        cmp al, '$'       ; Check if we are done
+        jne .print_loop
 
     popa
     ret
@@ -719,6 +1588,46 @@ start:
 
     mov ax, 0;
     mov es, ax;
+
+
+startscreen:
+    openfile start_screen_filename
+    mov [start_screen_handle], ax
+    call drawStartScreen
+
+
+keypress:
+    xor ax, ax    
+    mov ah, 0
+    int 0x16
+
+    cmp al, 'R'
+    je helpscreen
+    cmp al, 'r'
+    je helpscreen
+    cmp al, 'P'
+    je Resume
+    cmp al, 'p'
+    je Resume
+    cmp al, 0x1B
+    je exit
+    jmp keypress
+    
+
+helpscreen:      
+    openfile help_screen_filename
+    mov [help_screen_handle], ax
+    call Rules
+
+    mov ah, 0
+    int 0x16
+    cmp al, 0x1B
+    je startscreen
+
+
+Resume:
+    mov ax, 0
+    mov es, ax
 
     ; SAVE PREVIOUS KBISR
     mov ax, [es:9*4]
@@ -755,8 +1664,7 @@ start:
     call drawBG
 
     .infLoop:
-        cmp byte[YPressed], 1
-        je .gameOver
+        ; call play_background_music
         call moveGround
         call drawBackgroundInBirdPlace
         cmp byte [spacePressed], 0
@@ -769,49 +1677,72 @@ start:
         add word [bird_row], 5
         call drawBird
         cmp byte[collsionFlag], 1
+        ; call play_background_music
         je .gameOver
         cmp word [bird_row], 184
         jge .gameOver
         call movePillars
-        call delay
+        call delay1
+        cmp byte[YPressed], 1
+        je .gameOver
         jmp .infLoop
 
     .gameOver:
-        mov dl, 0
-        mov dh, 0
-        mov bh, 0
-        mov ah, 02h
-        int 0x10
-        mov ah, 0x09
-        lea dx, gameOverMessage
-        int 0x21 
+        closefile bird_handle
+        closefile bg_handle
+        closefile pillar_handle
+        closefile down_pillar_handle
 
-    .stopLoop:
-    closefile bird_handle
-    closefile bg_handle
-    closefile pillar_handle
-    closefile down_pillar_handle
+        ;UNHOOK
+        mov ax, 0;
+        mov es, ax;
 
-    ;UNHOOK
-    mov ax, 0;
-    mov es, ax;
+        mov ax, [oldisr]
+        mov [es:9*4], ax
 
-    mov ax, [oldisr]
-    mov [es:9*4], ax
+        mov ax, [oldisr+2];
+        mov [es:9*4+2], ax
 
-    mov ax, [oldisr+2];
-    mov [es:9*4+2], ax
+        mov ax,word[oldtimer]
+        mov word[es:8*4], ax
 
-    mov ax,word[oldtimer]
-    mov word[es:8*4], ax
+        mov ax,word[oldtimer+2]
+        mov word[es:8*4+2], ax
 
-    mov ax,word[oldtimer+2]
-    mov word[es:8*4+2], ax
+        openfile gameOverScreen_filename
+        mov [gameOverScreen_handle], ax    
+        call gameOverscreen  
+        mov ah, 0
+        int 0x16 
+        call clrscrn
 
-    xor ax, ax;
-    int 0x16
+        ; call clrscrn
+        ; mov dl, 0
+        ; mov dh, 0
+        ; mov bh, 0
+        ; mov ah, 02h
+        ; int 0x10
+        ; mov ah, 0x09
+        ; lea dx, gameOverMessage
+        ; int 0x21
+
+        xor ax, ax;
+        int 0x16
 
     ; Exit the program
+    exit:
+    call clrscrn
+    mov dl, 0
+    mov dh, 0
+    mov bh, 0
+    mov ah, 02h
+    int 0x10
+    mov ah, 0x09
+    lea dx, gameOverMessage
+    int 0x21
+    mov ah, 0x09
+    lea dx, newLine
+    int 0x21
     mov ax, 0x4C00
     int 0x21
 

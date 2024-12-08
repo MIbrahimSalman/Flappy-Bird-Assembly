@@ -1,4 +1,4 @@
-filename = "bgg2.png"
+filename = "muzi.jpg"
 height = 320
 width = 200
 
