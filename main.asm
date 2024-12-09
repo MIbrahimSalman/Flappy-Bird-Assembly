@@ -1183,10 +1183,12 @@ kbisr:
         jmp .retWithoutChaining
 
     .escPressed:
+        call turn_speaker_off
         mov byte[YPressed], 0
         mov byte[NPressed], 0
         call clrscrn
         call prompt_and_input_str
+        call turn_speaker_on
         jmp .retWithoutChaining
 
 movePillars:
@@ -1546,6 +1548,33 @@ Resume:
         jmp .infLoop
 
     .gameOver:
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call delay
+        call turn_speaker_off
         closefile bird_handle
         closefile bg_handle
         closefile pillar_handle
