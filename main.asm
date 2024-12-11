@@ -1437,11 +1437,13 @@ moveBirdDown:
         call drawBackgroundInBirdPlace
 
         mov ax, [bird_column]
-        add ax, 32
+        add ax, BIRD_WIDTH
         cmp ax, [pillar_columns+0]
         jl .skipPillar0
-        sub ax, PILLAR_WIDTH
-        cmp ax, [pillar_columns+0]
+        sub ax, BIRD_WIDTH
+        mov bx, [pillar_columns+0]
+        add bx, PILLAR_WIDTH
+        cmp ax, bx
         jg .skipPillar0
 
         push word [pillar_heights+0]
@@ -1460,11 +1462,13 @@ moveBirdDown:
         .skipPillar0:
 
         mov ax, [bird_column]
-        add ax, 32
+        add ax, BIRD_WIDTH
         cmp ax, [pillar_columns+2]
         jl .skipPillar1
-        sub ax, PILLAR_WIDTH
-        cmp ax, [pillar_columns+2]
+        sub ax, BIRD_WIDTH
+        mov bx, [pillar_columns+2]
+        add bx, PILLAR_WIDTH
+        cmp ax, bx
         jg .skipPillar1
         
         push word [pillar_heights+2]
