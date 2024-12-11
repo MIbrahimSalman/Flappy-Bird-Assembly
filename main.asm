@@ -54,11 +54,12 @@ collsionFlag: db 0
 escMsg: db 13, "Press Y to exit or N to continue!$"
 YPressed: db 0
 NPressed: db 0
+KPressed: db 0
 
 score: dw 0
 scoreAdded: db 0
 transparentColor: db 0
-ScoreBuffer db 5, 0, 0, 0, 0, '$' ;buffer for the string (up to 5 digits and $ for display)
+ScoreBuffer db 5, 0, 0, 0, 0, '$' ; Buffer for the string (up to 5 digits and $ for display)
 scoreMessage db 'Score: $'
 
 gameOverMessage db 'Game Over! Press any key to exit.$'
@@ -1178,6 +1179,7 @@ kbisr:
         iret
 
     .SpaceUP:
+        mov byte[KPressed], 1
         mov byte [spacePressed], 1
         call play_score_sound 
         jmp .retWithoutChaining
@@ -1241,7 +1243,8 @@ movePillars:
         jne .skipPillar
         mov word [pillar_columns+bx-2], STARTING_ROW-PILLAR_STEP
         .skipPillar:
-        loop .movePillar
+        dec cx
+        jnz .movePillar
     popa
     ret
 
@@ -1427,6 +1430,81 @@ printScore:
     popa
     ret
 
+moveBirdDown:
+    pusha
+    .moveDown:
+        call delay1
+        call drawBackgroundInBirdPlace
+
+        mov ax, [bird_column]
+        add ax, 32
+        cmp ax, [pillar_columns+0]
+        jl .skipPillar0
+        sub ax, PILLAR_WIDTH
+        cmp ax, [pillar_columns+0]
+        jg .skipPillar0
+
+        push word [pillar_heights+0]
+        push word [pillar_columns+0]
+        push 184
+        call drawUpPillar
+
+        mov ax, [pillar_heights+0]
+        add ax, VERTICAL_PILLAR_GAP
+        sub ax, 184
+        neg ax
+        push word ax
+        push word [pillar_columns+0]
+        call drawDownPillar
+
+        .skipPillar0:
+
+        mov ax, [bird_column]
+        add ax, 32
+        cmp ax, [pillar_columns+2]
+        jl .skipPillar1
+        sub ax, PILLAR_WIDTH
+        cmp ax, [pillar_columns+2]
+        jg .skipPillar1
+        
+        push word [pillar_heights+2]
+        push word [pillar_columns+2]
+        push 184
+        call drawUpPillar
+
+        mov ax, [pillar_heights+2]
+        add ax, VERTICAL_PILLAR_GAP
+        sub ax, 184
+        neg ax
+        push word ax
+        push word [pillar_columns+2]
+        call drawDownPillar
+
+        .skipPillar1:
+        
+        push word [pillar_heights+4]
+        push word [pillar_columns+4]
+        push 184
+        call drawUpPillar
+
+        mov ax, [pillar_heights+4]
+        add ax, VERTICAL_PILLAR_GAP
+        sub ax, 184
+        neg ax
+        push word ax
+        push word [pillar_columns+4]
+        call drawDownPillar
+
+        add word [bird_row], 5
+        cmp word [bird_row], 184
+        jge .exit
+        call drawBird
+        jmp .moveDown
+    
+    .exit:
+        popa
+        ret
+        
 
 start:
     mov ax, 1100
@@ -1524,6 +1602,11 @@ Resume:
     mov [down_pillar_handle], ax
 
     call drawBG
+    call drawBird
+
+    .infi:
+        cmp byte[KPressed], 1
+        jne .infi
 
     .infLoop:
         call moveGround
@@ -1548,6 +1631,11 @@ Resume:
         jmp .infLoop
 
     .gameOver:
+        cmp byte[YPressed], 1
+        je .skip
+        call moveBirdDown
+
+    .skip:
         call delay
         call delay
         call delay
