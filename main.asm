@@ -150,7 +150,7 @@ play_score_sound:
 
 delay1:
     push cx
-    mov cx, 10
+    mov cx, 1
     .l1:
         push cx
         mov cx, 0xFFFF
@@ -1430,75 +1430,45 @@ printScore:
     popa
     ret
 
+restorePillar:
+    pusha
+    mov bx, 0
+    .restorePillar:
+        mov ax, [bird_column]
+        add ax, BIRD_WIDTH
+        cmp ax, [pillar_columns+bx]
+        jl .skip
+        sub ax, BIRD_WIDTH
+        mov dx, [pillar_columns+bx]
+        add dx, PILLAR_WIDTH
+        cmp ax, dx
+        jg .skip
+
+        push word [pillar_heights+bx]
+        push word [pillar_columns+bx]
+        push 184
+        call drawUpPillar
+
+        mov ax, [pillar_heights+bx]
+        add ax, VERTICAL_PILLAR_GAP
+        sub ax, 184
+        neg ax
+        push word ax
+        push word [pillar_columns+bx]
+        call drawDownPillar
+        .skip:
+            add bx, 2
+            cmp bx, 6
+            jne .restorePillar
+    popa
+    ret
+
 moveBirdDown:
     pusha
     .moveDown:
         call delay1
         call drawBackgroundInBirdPlace
-
-        mov ax, [bird_column]
-        add ax, BIRD_WIDTH
-        cmp ax, [pillar_columns+0]
-        jl .skipPillar0
-        sub ax, BIRD_WIDTH
-        mov bx, [pillar_columns+0]
-        add bx, PILLAR_WIDTH
-        cmp ax, bx
-        jg .skipPillar0
-
-        push word [pillar_heights+0]
-        push word [pillar_columns+0]
-        push 184
-        call drawUpPillar
-
-        mov ax, [pillar_heights+0]
-        add ax, VERTICAL_PILLAR_GAP
-        sub ax, 184
-        neg ax
-        push word ax
-        push word [pillar_columns+0]
-        call drawDownPillar
-
-        .skipPillar0:
-
-        mov ax, [bird_column]
-        add ax, BIRD_WIDTH
-        cmp ax, [pillar_columns+2]
-        jl .skipPillar1
-        sub ax, BIRD_WIDTH
-        mov bx, [pillar_columns+2]
-        add bx, PILLAR_WIDTH
-        cmp ax, bx
-        jg .skipPillar1
-        
-        push word [pillar_heights+2]
-        push word [pillar_columns+2]
-        push 184
-        call drawUpPillar
-
-        mov ax, [pillar_heights+2]
-        add ax, VERTICAL_PILLAR_GAP
-        sub ax, 184
-        neg ax
-        push word ax
-        push word [pillar_columns+2]
-        call drawDownPillar
-
-        .skipPillar1:
-        
-        push word [pillar_heights+4]
-        push word [pillar_columns+4]
-        push 184
-        call drawUpPillar
-
-        mov ax, [pillar_heights+4]
-        add ax, VERTICAL_PILLAR_GAP
-        sub ax, 184
-        neg ax
-        push word ax
-        push word [pillar_columns+4]
-        call drawDownPillar
-
+        call restorePillar
         add word [bird_row], 5
         cmp word [bird_row], 184
         jge .exit
