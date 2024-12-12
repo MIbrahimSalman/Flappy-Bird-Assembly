@@ -307,6 +307,8 @@ Rules:
         mov ax, 0x1010
         mov dh, [si+2]
         shr dh, 2
+        add ax,2
+        sub ax,2
         mov ch, [si+1]
         shr ch, 2
         mov cl, [si+0]
